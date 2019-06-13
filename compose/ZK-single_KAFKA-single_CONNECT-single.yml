@@ -9,13 +9,11 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
-  ######################################################
-  # Kafka brokers
-  ######################################################
-
-  kafka1:
-    image: confluentinc/cp-kafka:5.2.0
-    hostname: kafka1
+  kafka:
+    image: "confluentinc/cp-kafka:5.2.0"
+    hostname: kafka
+    depends_on:
+    - zoo
     ports:
     - "9092:9092"
     environment:
@@ -23,40 +21,9 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: "zoo:2181"
       KAFKA_BROKER_ID: 1
       KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
-    volumes:
-    - ./kafka1/data:/var/lib/kafka/data
-    depends_on:
-    - zoo
-
-  kafka2:
-    image: confluentinc/cp-kafka:5.2.0
-    hostname: kafka2
-    ports:
-    - "9093:9093"
-    environment:
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${DOCKER_HOST_IP}:9093
-      KAFKA_ZOOKEEPER_CONNECT: "zoo:2181"
-      KAFKA_BROKER_ID: 2
-      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
-    volumes:
-    - ./kafka2/data:/var/lib/kafka/data
-    depends_on:
-    - zoo
-
-  kafka3:
-    image: confluentinc/cp-kafka:5.2.0
-    hostname: kafka3
-    ports:
-    - "9094:9094"
-    environment:
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${DOCKER_HOST_IP}:9094
-      KAFKA_ZOOKEEPER_CONNECT: "zoo:2181"
-      KAFKA_BROKER_ID: 3
-      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
-    volumes:
-    - ./kafka3/data:/var/lib/kafka/data
-    depends_on:
-    - zoo
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
 
   schema-registry:
@@ -64,9 +31,7 @@ services:
     hostname: schema-registry
     depends_on:
     - zoo
-    - kafka1
-    - kafka2
-    - kafka3
+    - kafka
     ports:
     - "8081:8081"
     environment:
@@ -80,14 +45,12 @@ services:
     hostname: connect
     depends_on:
     - zoo
-    - kafka1
-    - kafka2
-    - kafka3
+    - kafka
     - schema-registry
     ports:
     - "8083:8083"
     environment:
-      CONNECT_BOOTSTRAP_SERVERS: 'kafka1:9092,kafka2:9092,kafka3:9092'
+      CONNECT_BOOTSTRAP_SERVERS: 'kafka:9092'
       CONNECT_REST_ADVERTISED_HOST_NAME: connect
       CONNECT_REST_PORT: 8083
       CONNECT_GROUP_ID: compose-connect-group
@@ -113,9 +76,7 @@ services:
     image: confluentinc/cp-kafka-rest:5.2.0
     hostname: rest-proxy
     depends_on:
-    - kafka1
-    - kafka2
-    - kafka3
+    - kafka
     - schema-registry
     ports:
     - "8084:8084"
@@ -137,9 +98,7 @@ services:
   schema-registry-ui:
     image: landoop/schema-registry-ui
     depends_on:
-    - kafka1
-    - kafka2
-    - kafka3
+    - kafka
     - schema-registry
     ports:
     - "8002:8000"
@@ -160,9 +119,7 @@ services:
     image: sheepkiller/kafka-manager
     depends_on:
     - zoo
-    - kafka1
-    - kafka2
-    - kafka3
+    - kafka
     ports:
     - "8004:9000"
     environment:
